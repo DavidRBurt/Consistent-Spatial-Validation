@@ -1,4 +1,7 @@
-# Package Installation
+## About
+Code for the preprint "Consistent Validation for Predictive Methods in Spatial Settings", currently on ArXiv.
+
+## Package Installation
 Navigate to the `code` directory and run `python -m pip install .` in a python 3.10 environment. The package requires tensorflow, so installation may take some time.
 
 ## Installation of Data
