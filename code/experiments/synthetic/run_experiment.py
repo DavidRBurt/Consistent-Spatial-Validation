@@ -7,13 +7,12 @@ from joblib import Parallel, delayed
 
 import json_tricks
 import numpy as np
-from gpflow.kernels import Matern32, RBF
+from gpflow.kernels import Matern32, RBF, Matern12
 
 from spatial_validation.data import ensure_numpy_dict, load_dataset_from_json
 from spatial_validation.experiment import Experiment
 from spatial_validation.losses import SquaredLoss, TruncatedSquaredLoss
 from spatial_validation.models import KRRSpatialRegression
-
 
 def build_kernel(
     num_covariates: int,
@@ -25,6 +24,8 @@ def build_kernel(
         kernel_fn = RBF
     elif kernel_name == "matern32":
         kernel_fn = Matern32
+    elif kernel_name == "matern12":
+        kernel_fn = Matern12
     else:
         raise NotImplementedError
 
@@ -112,9 +113,8 @@ if __name__ == "__main__":
         default=1000,
     )
     # add argparse to choose which seeds to run
-    parser.add_argument("-t", "--threads", type=int, default=10)
-    parser.add_argument("--rbf", action=argparse.BooleanOptionalAction)
-
+    parser.add_argument("-t", "--threads", type=int, default=5)
+    parser.add_argument("-k", "--kernel", type=str, default="matern32", choices=["rbf", "matern32", "matern12"])
     # parse args
     args = parser.parse_args()
     # Load Data
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     else:
         raise ValueError("Invalid dataset choice")
     model_name = "gp"
-    kernel_name = "rbf" if args.rbf else "matern32"
+    kernel_name = args.kernel
     datadir = Path(
         root_data_dir,
         f"{ds_name}-{model_name}",

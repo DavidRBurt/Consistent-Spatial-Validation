@@ -13,7 +13,7 @@ import ssl
 
 # turn off mathjax for plotly
 pio.kaleido.scope.mathjax = None
-LATEST = "v4.0.1.20240127" # Needs to be updated manually, can be found at https://www.ncei.noaa.gov/data/global-historical-climatology-network-monthly/v4/temperature/access/
+LATEST = "v4.0.1.20240518" # Needs to be updated manually, can be found at https://www.ncei.noaa.gov/data/global-historical-climatology-network-monthly/v4/temperature/access/
 DataDir = Path(Path(__file__).parent, "airTempData")
 FigDir =  Path(Path(__file__).parents[4], "figures", "airTemp")
 os.makedirs(FigDir, exist_ok=True)
@@ -164,21 +164,9 @@ if __name__ == "__main__":
             color=[float(d["temperature"])/100.0 for _, d in data_dict.items()],
             colorscale="Viridis",
             showscale=True,
+                )
         )
     )
-)
-    # center title, move closer to the ground, tighten margin
-    fig.update_layout(
-        title="Monthly Avg. Temp. at Weather Stations Jan 2018",
-        title_x=0.5,
-        title_y=0.9,
-        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        geo_scope="usa",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
-        plot_bgcolor="rgba(0, 0, 0, 0)",
-    )
-
-    # fig.update_layout(coloraxis_colorbar=dict(title='Log10 County Population', tickprefix='1.e'))
 
     chorpleth = go.Choropleth(
         locationmode="USA-states",
@@ -189,8 +177,24 @@ if __name__ == "__main__":
         marker_line_width=2,
         showscale=False,
     )
-
     fig.add_trace(chorpleth)
+    # center title, move closer to the ground, tighten margin
+    fig.update_layout(
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        geo_scope="usa",
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="rgba(0, 0, 0, 0)",
+        coloraxis_colorbar=dict(
+            len=0.5,
+            xanchor="right", 
+            x=1.0,
+            yanchor='bottom', 
+            y=0.1,
+            thickness=10,
+    )
+    )
+
+
     # save figure to pdf
     fig.write_image(str(Path(FigDir,"weather_stations.pdf")))
     # Save data dictionary to file

@@ -80,7 +80,7 @@ def plot_risks(
     ax = fig.get_axes()
     plt.xlabel("Number of Validation Points")
     plt.ylabel(
-        "$(\hat{R}^{X}_{Q^{\mathrm{test}}}(h) - \hat{R}(h))/\hat{R}^{X}_{Q^{\mathrm{test}}}(h)$"
+        "$(\hat{R}_{Q^{\mathrm{test}}}(h) - \hat{R}(h))/\hat{R}^{X}_{Q^{\mathrm{test}}}(h)$"
     )
     bplot = plt.boxplot(
         all_rel_boxes,
@@ -102,11 +102,11 @@ def plot_risks(
     plt.xticks(ticks=2 * np.arange(len(all_results.keys())), labels=all_results.keys())
     plt.xlim(-1.0, 2 * len(all_results.keys()) - 1)
     # add legend for two estimators
-    plt.legend(
-        handles=[bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]],
-        labels=["Holdout", "1NN", "SNN"],
-        ncol=3,
-    )
+    # plt.legend(
+    #     handles=[bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]],
+    #     labels=["Holdout", "1NN", "SNN"],
+    #     ncol=3,
+    # )
 
     plt.tight_layout()
     plt.savefig(str(Path(fig_directory, "rel_risk_boxplot.pdf")))
@@ -115,7 +115,7 @@ def plot_risks(
     fig = plt.figure(figsize=(two_column_width_inches, two_column_width_inches / 1.75))
     ax = fig.get_axes()
     plt.xlabel("Number of Validation Points")
-    plt.ylabel("$|\hat{R}^{X}_{Q^{\mathrm{test}}}(h) - \hat{R}(h)|$")
+    plt.ylabel("$|\hat{R}_{Q^{\mathrm{test}}}(h) - \hat{R}(h)|$")
     bplot = plt.boxplot(
         all_abs_boxes,
         medianprops=dict(color="k"),
@@ -143,11 +143,11 @@ def plot_risks(
                 fontdict={"color": f"C{i % 3}", "size": 5},
             )
     # add legend for two estimators
-    plt.legend(
-        handles=[bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]],
-        labels=["Holdout", "1NN", "SNN"],
-        ncol=3,
-    )
+    # plt.legend(
+    #     handles=[bplot["boxes"][0], bplot["boxes"][1], bplot["boxes"][2]],
+    #     labels=["Holdout", "1NN", "SNN"],
+    #     ncol=3,
+    # )
 
     plt.tight_layout()
     plt.savefig(str(Path(fig_directory, "abs_risk_boxplot.pdf")))

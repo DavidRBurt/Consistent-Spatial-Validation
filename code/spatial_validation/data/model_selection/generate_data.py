@@ -76,15 +76,15 @@ if __name__ == "__main__":
 
         data_fp = str(Path(datadir, f"seed-{seed}.json"))
         training_data = SpatialDataset(
-            S=allsites[:n_train], X=None, Y=response[:n_train]
+            S=allsites[:n_train] - 0.5, X=None, Y=response[:n_train]
         )
         validation_data = SpatialDataset(
-            S=allsites[n_train : n_val + n_train],
+            S=allsites[n_train : n_val + n_train] - 0.5,
             X=None,
             Y=response[n_train : n_val + n_train],
         )
         test_data = SpatialDataset(
-            S=allsites[n_val + n_train :],
+            S=allsites[n_val + n_train :] - 0.5,
             X=None,
             Y=response[n_val + n_train :],
         )

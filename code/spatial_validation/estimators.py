@@ -13,6 +13,7 @@ from sklearn.neighbors import KernelDensity, KNeighborsRegressor, NearestNeighbo
 from .data import SpatialDataset
 from .losses import Loss, SquaredLoss, TruncatedSquaredLoss
 from .models import SpatialModel
+from .compute_fill_distance import approximate_fill_distance
 
 
 def _to_np(arr: Union[ArrayLike, tf.Tensor]):
@@ -90,6 +91,9 @@ class WeightedEstimator(LossEstimator):
     def build_weights(self) -> ArrayLike:
         """
         Return vector of weights same shape as validation sites
+
+        Returns:
+            ArrayLike: [description]
         """
         pass
 
@@ -182,12 +186,16 @@ class NearestNeighborEstimator(RegressionEstimator):
 class HaversineNearestNeighborEstimator(NearestNeighborEstimator):
 
     def neighbor_regressor(self):
-        return KNeighborsRegressor(n_neighbors=1, algorithm="ball_tree", metric="haversine")
-    
+        return KNeighborsRegressor(
+            n_neighbors=1, algorithm="ball_tree", metric="haversine"
+        )
+
 
 class FitNearestNeighborEstimator(NearestNeighborEstimator):
 
-    def _calculate_k_bound(self, distances, inds, k, delta = 0.1, B = 1.0):
+    def _calculate_k_bound(
+        self, distances, inds, k, delta: Optional[float] = None, B: float = 1.0
+    ):
         ntest = len(distances)
         # Calculate fill distance
         fill_distance = np.max(distances)
@@ -198,48 +206,67 @@ class FitNearestNeighborEstimator(NearestNeighborEstimator):
         two_norm = np.linalg.norm(counts_over_kntest)
         # constant
         const = B * np.sqrt(0.5 * np.log(2 / delta))
-        return fill_distance + const * two_norm
+        return fill_distance + self.loss.upper_bound * const * two_norm
 
-
-    def _find_n_neighbors(self):
+    def _find_n_neighbors(self, delta: Optional[float] = None):
+        """
+        Code currently assumes points are in [-0.5, 0.5]^d
+        """
+        if delta is None:
+            # Rescale points to be in [0,1]^d
+            pts = self.validation_data.S + 0.5
+            good_inds = np.where(np.all((pts >= 0) & (pts <= 1), axis=1))[0]
+            pts = pts[good_inds]
+            # Keep track of max rescaling factor, will need to scale fill by this.
+            # max_range = np.max(ran)
+            # Compute approximate fill distance
+            deltat = approximate_fill_distance(pts)
+            # deltat = deltat * max_range
+            delta = np.minimum(deltat, 1.0)
+            print(f"Delta = {delta}")
         nval = len(self.validation_data.S)
-        max_log2_k = int(np.log2(nval) // 1) # floor(log_2(nval))
-        possible_k = 2 ** np.arange(max_log2_k) # (1, 2, ..., 2^floor(log_2(nval)))
+        max_log2_k = int(np.log2(nval) // 1)  # floor(log_2(nval))
+        possible_k = 2 ** np.arange(max_log2_k)  # (1, 2, ..., 2^floor(log_2(nval)))
         best_k = 1
         best_k_bound = np.inf
         nns = NearestNeighbors(algorithm="kd_tree")
         nns.fit(self.validation_data.S)
         for k in possible_k:
             # Run nearest neighbors
-            distances, inds = nns.kneighbors(self.test_sites, n_neighbors=k, return_distance=True)
+            distances, inds = nns.kneighbors(
+                self.test_sites, n_neighbors=k, return_distance=True
+            )
             # Calculate bound using neighbor weights and distances
-            k_bound = self._calculate_k_bound(distances, inds, k)
+            k_bound = self._calculate_k_bound(distances, inds, k, delta=delta)
             # update best k and bound
             if k_bound < best_k_bound:
                 best_k = k
                 best_k_bound = k_bound
         return best_k, best_k_bound
 
-    def neighbor_regressor(self):
-        n_neighbors, best_bound = self._find_n_neighbors()
+    def neighbor_regressor(self, delta: Optional[float] = None):
+        n_neighbors, best_bound = self._find_n_neighbors(delta)
         self.num_neighbors = n_neighbors
         return KNeighborsRegressor(n_neighbors=n_neighbors, algorithm="kd_tree")
-    
+
+
 class HaversineFitNearestNeighborEstimator(FitNearestNeighborEstimator):
-    
+
     def _find_n_neighbors(self):
         nval = len(self.validation_data.S)
-        max_log2_k = int(np.log2(nval) // 1) # floor(log_2(nval))
-        possible_k = 2 ** np.arange(max_log2_k) # (1, 2, ..., 2^floor(log_2(nval)))
+        max_log2_k = int(np.log2(nval) // 1)  # floor(log_2(nval))
+        possible_k = 2 ** np.arange(max_log2_k)  # (1, 2, ..., 2^floor(log_2(nval)))
         best_k = 1
         best_k_bound = np.inf
         nns = NearestNeighbors(algorithm="ball_tree", metric="haversine")
         nns.fit(self.validation_data.S)
         for k in possible_k:
             # Run nearest neighbors
-            distances, inds = nns.kneighbors(self.test_sites, n_neighbors=k, return_distance=True)
+            distances, inds = nns.kneighbors(
+                self.test_sites, n_neighbors=k, return_distance=True
+            )
             # Calculate bound using neighbor weights and distances
-            k_bound = self._calculate_k_bound(distances, inds, k)
+            k_bound = self._calculate_k_bound(distances, inds, k, delta=0.1)
             # update best k and bound
             if k_bound < best_k_bound:
                 best_k = k
@@ -249,4 +276,6 @@ class HaversineFitNearestNeighborEstimator(FitNearestNeighborEstimator):
     def neighbor_regressor(self):
         n_neighbors, best_bound = self._find_n_neighbors()
         self.num_neighbors = n_neighbors
-        return KNeighborsRegressor(n_neighbors=n_neighbors, algorithm="ball_tree", metric="haversine")
+        return KNeighborsRegressor(
+            n_neighbors=n_neighbors, algorithm="ball_tree", metric="haversine"
+        )

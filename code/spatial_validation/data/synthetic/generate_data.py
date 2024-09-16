@@ -93,7 +93,7 @@ if __name__ == "__main__":
             "point_prediction",
         ],
     )
-    parser.add_argument("--rbf", action=argparse.BooleanOptionalAction)
+    parser.add_argument("-k", "--kernel", type=str, default="matern32", choices=["rbf", "matern32", "matern12"])
     parser.add_argument("--plot", action=argparse.BooleanOptionalAction)
 
     parser.add_argument(
@@ -112,21 +112,21 @@ if __name__ == "__main__":
         "-t",
         "--threads",
         type=int,
-        default=10,
+        default=5,
     )
 
     # parse arguments
     args = parser.parse_args()
     
     model_name = "gp"
-    kernel_name = "rbf" if args.rbf else "matern32"
-
+    kernel_name = args.kernel
 
     if args.dataset == "cluster":
         data_args = dict(
             num_train=args.num_train,
             num_val=args.num_val,
-            num_test=2500,
+            num_test=30**2,
+            num_test_copies=50,
             spatial_dimension=2,
             num_covariates=2,
             covariate_lengthscale=0.3,
@@ -145,7 +145,8 @@ if __name__ == "__main__":
         data_args = dict(
             num_train=args.num_train,
             num_val=args.num_val,
-            num_test=2500,
+            num_test=1,
+            num_test_copies=45000,
             spatial_dimension=2,
             num_covariates=2,
             covariate_lengthscale=0.3,
@@ -177,6 +178,7 @@ if __name__ == "__main__":
         data_fp = str(Path(savedir, f"seed-{seed}.json"))
         data_generator.save_data(filepath=data_fp, seed=seed)
 
+    ds = data_generator.generate_data(0)
     if args.plot:
         figdir = Path(Path(__file__).parents[4], "figures", "synthetic", f"{ds_name}-{model_name}")
         os.makedirs(str(figdir), exist_ok=True)

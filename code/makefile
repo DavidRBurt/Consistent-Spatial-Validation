@@ -32,6 +32,9 @@ SyntheticPointDatasets: ${SyntheticPointDatasetsComplete}
 SyntheticPointResults: ${SyntheticPointResultsComplete}
 .Phony : SyntheticPointPlots # Plots are always regenerated, this is fast though.
 
+SyntheticPointPlots: ${SyntheticGridResultsComplete} $(syn_exp_dir)/plotting/plot_consistency.py
+	bash $(syn_scripts_dir)/PlotSyntheticPointExperiments.sh
+
 # Commands for running synthetic experiments.
 ${SyntheticPointDatasetsComplete}: $(syn_data_dir)/generate_data.py
 	bash $(syn_scripts_dir)/MakeSyntheticPointDatasets.sh >  $(syn_data_dir)/data/point_out.log
@@ -102,6 +105,4 @@ $(at_exp_dir)/results/gwr-metro.json: AirTempData experiments/airTemp/airtemp_ex
 
 $(at_exp_dir)/results/gwr-grid.json: AirTempData experiments/airTemp/airtemp_experiment.py $(at_data_dir)/AirTempData/grid_temperature_data.json
 	python experiments/airTemp/airtemp_experiment.py -d grid
-
-	
 

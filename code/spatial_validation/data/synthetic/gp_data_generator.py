@@ -6,9 +6,8 @@ import json_tricks
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from gpflow.kernels import Matern32, RBF, White
+from gpflow.kernels import Matern32, RBF, White, Matern12
 from gpflow.config import default_float
-from spatial_validation.rff import Matern32RFF, RBFRFF
 from numpy.typing import ArrayLike
 import matplotlib
 import matplotlib.pyplot as plt
@@ -36,6 +35,7 @@ class SyntheticGPData:
     num_train: int
     num_val: int
     num_test: int
+    num_test_copies: int
     spatial_dimension: int
     num_covariates: int
     covariate_lengthscale: float
@@ -71,10 +71,16 @@ class SyntheticGPData:
             kernel = RBF(lengthscales=self.covariate_lengthscale) + White(
                 variance=1e-12
             )  # add small amount to diagonal for stability
-        else:
+        elif self.kernel_name == "matern32":
             kernel = Matern32(lengthscales=self.covariate_lengthscale) + White(
                 variance=1e-12
             )  # add small amount to diagonal for stability
+        elif self.kernel_name == "matern12":
+            kernel = Matern12(lengthscales=self.covariate_lengthscale) + White(
+                variance=1e-12
+            )
+        else:
+            raise NotImplementedError
         covariance_matrix = kernel(S)
         cov_sqrt = tf.linalg.cholesky(covariance_matrix)
         dist = tfp.distributions.MultivariateNormalTriL(
@@ -88,6 +94,7 @@ class SyntheticGPData:
         S: ArrayLike,
         X: ArrayLike,
         gen_f: bool = False,
+        copies: bool = True,
     ) -> ArrayLike:
         all_variables = tf.concat([X, S], axis=-1)
         if self.kernel_name == "rbf":
@@ -115,12 +122,24 @@ class SyntheticGPData:
                     self.num_covariates, self.num_covariates + self.spatial_dimension
                 ),
             )
+        elif self.kernel_name == "matern12":
+            response_kernel = Matern12(
+                lengthscales=self.response_lengthscale,
+                active_dims=np.arange(self.num_covariates),
+            )
+            spatial_noise_kernel = Matern12(
+                lengthscales=self.noise_lengthscale,
+                variance=self.spatial_noise_variance,
+                active_dims=np.arange(
+                    self.num_covariates, self.num_covariates + self.spatial_dimension
+                ),
+            )
         else:
             raise NotImplementedError
-        if gen_f:
-            white_noise_kernel = White(1e-6)
-        else:
-            white_noise_kernel = White(self.white_noise_variance)
+        # if gen_f:
+        white_noise_kernel = White(1e-6)
+        # else:
+            # white_noise_kernel = White(self.white_noise_variance)
         kernel = response_kernel + spatial_noise_kernel + white_noise_kernel
 
         covariance_matrix = kernel(all_variables)
@@ -130,6 +149,15 @@ class SyntheticGPData:
         )
         y_transpose = dist.sample(1)
         y = tf.transpose(y_transpose)
+        # extract test sites from y
+        ytest = y[self.num_train + self.num_val :]
+        if copies:
+            # repeat test sites num_test_copies - 1 times
+            ytest = tf.tile(ytest, [self.num_test_copies - 1, 1])
+        # concatenate y with ytest
+        y = tf.concat([y, ytest], axis=0)
+        # add noise to everything
+        y += tf.random.normal(y.shape, stddev=np.sqrt(self.white_noise_variance), dtype=default_float())
         return y.numpy()
 
     def generate_data(self, seed=0) -> Dataset:
@@ -139,7 +167,10 @@ class SyntheticGPData:
         # Generate X, Sample from Multivariate Gaussian with Matern32 kernel
         X = self.generate_covariates(S=S)
         # Generate Y
-        Y = self.generate_response(S, X)
+        if self.num_test_copies > 1:
+            Y = self.generate_response(S, X, gen_f=True)
+        else:
+            Y = self.generate_response(S, X)
 
         num_train_and_val = self.num_train + self.num_val
 
@@ -154,8 +185,8 @@ class SyntheticGPData:
             Y[self.num_train : num_train_and_val],
         )
         test = SpatialDataset(
-            S[num_train_and_val:],
-            X[num_train_and_val:],
+            tf.tile(S[num_train_and_val:], [self.num_test_copies, 1]),
+            tf.tile(X[num_train_and_val:], [self.num_test_copies, 1]),
             Y[num_train_and_val:],
         )
         data = Dataset(train, val, test)
@@ -194,7 +225,7 @@ class SyntheticGPData:
         train_val_sites = self.generate_train_sites()
         grid = self.generate_grid_sites(num_pts, lower, upper)
         x_on_grid = self.generate_covariates(grid)
-        y_on_grid = self.generate_response(grid, x_on_grid, gen_f=True)
+        y_on_grid = self.generate_response(grid, x_on_grid, gen_f=True, copies=False)
         S1 = np.sort(np.unique(grid[:, 0]))
         S2 = np.sort(np.unique(grid[:, 1]))
 
@@ -271,11 +302,4 @@ class PointTestMixin:
     s_test_max: float
 
     def generate_test_sites(self):
-        s_test_range = self.s_test_max - self.s_test_min
-        test_site_location = s_test_range * (
-            np.random.rand(1, self.spatial_dimension) + self.s_test_min
-        )
-        test_sites = (
-            np.zeros((self.num_test, self.spatial_dimension)) * test_site_location
-        )
-        return test_sites
+        return np.zeros((1, self.spatial_dimension)) 

@@ -11,7 +11,7 @@ from gpflow.kernels import Matern32
 
 from spatial_validation.data import ensure_numpy_dict, load_dataset_from_json
 from spatial_validation.experiment import AirTempExperiment
-from spatial_validation.losses import AbsoluteError
+from spatial_validation.losses import TruncatedAbsoluteError
 from spatial_validation.models import GeographicallyWeightedRegression
 
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     resultspath = Path(resultsdir, f"gwr-{args.dataset}.json")
     os.makedirs(resultsdir, exist_ok=True)
     # Declare Loss
-    loss = AbsoluteError()
+    loss = TruncatedAbsoluteError(5, scale_factor=6371/ 100)
     # Load the data
     dataset = load_dataset_from_json(str(datadir))
     # Compute scale factors to initialize GP (note Ytrain mean is small, no need to center for GP fitting)

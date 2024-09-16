@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+from time import time
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -76,6 +77,11 @@ class Experiment:
         name: Optional[str] = None,
         has_ground_truth: bool = True,
     ) -> Dict:
+        """
+
+        Returns:
+            Dict: [description]
+        """
         results = dict()
 
         for i, (model, model_name, param_name) in enumerate(
@@ -84,13 +90,17 @@ class Experiment:
             name = "_".join([model_name, param_name])
             results[name] = dict()
             for est, est_name in zip(self.estimators, self.estimator_names):
+                # Time how long risk estimation takes
+                start_time = time()
                 risk_estimate = est.estimate_risk(model)
+                end_time = time()
+                time_taken = end_time - start_time
                 if isinstance(est, estimators.NearestNeighborEstimator):
                     est_params = int(est.num_neighbors)
                 else:
                     est_params = None
                 results[name][est_name] = dict(
-                    estimate=risk_estimate, n_neighbors=est_params
+                    estimate=risk_estimate, n_neighbors=est_params, time_taken=time_taken
                 )
             if has_ground_truth:
                 predictions = model.predict(self.dataset.test.S, self.dataset.test.X)
@@ -105,6 +115,11 @@ class AirTempExperiment(Experiment):
         self,
         name: Optional[str] = None,
     ) -> Dict:
+        """
+
+        Returns:
+            Dict: [description]
+        """
         results = dict()
 
         for i, (model, model_name, param_name) in enumerate(
@@ -114,7 +129,11 @@ class AirTempExperiment(Experiment):
             results[name] = dict()
             for est, est_name in zip(self.estimators, self.estimator_names):
                 # If it is a BasicLossEstimator, loss confidence, otherwise confidence is None
+                # time how long risk estimation takes
+                start_time = time()
                 risk_estimate = est.estimate_risk(model)
+                end_time = time()
+                time_taken = end_time - start_time
                 estimate_confidence = None
                 est_params = None
                 if isinstance(est, estimators.BasicLossEstimator):
@@ -126,6 +145,7 @@ class AirTempExperiment(Experiment):
                     estimate=risk_estimate,
                     confidence=estimate_confidence,
                     est_params=est_params,
+                    time_taken=time_taken,
                 )
                 results[name][est_name] = est_results
 

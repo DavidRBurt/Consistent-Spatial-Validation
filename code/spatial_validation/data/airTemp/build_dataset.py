@@ -108,6 +108,10 @@ if __name__ == "__main__":
     inds = np.squeeze(inds)
     # Get the stations more than 4km from the closest LST point, remove these from training set
     bad_inds = np.where(distances * 6371 > 4.0)
+    # # Remove the bad indices from the station data
+    # station_lat_lons = np.delete(station_lat_lons, bad_inds, axis=0)
+    # inds = np.delete(inds, bad_inds)
+    # station_temps = np.delete(station_temps, bad_inds, axis=0)
     # get the LST data at the closest points
     S = station_lat_lons
     X = lst[inds]

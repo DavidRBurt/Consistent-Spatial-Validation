@@ -54,6 +54,7 @@ def write_table(all_results: Dict, tablefile: str):
         else:
             print(f"Unexpected estimator {col}")
     
+    # header = build_header(nrows, ncols, row_names, col_names)
     strs = list()
     strs.append("\\begin{tabular}{c|ccc} \n")
     strs.append("    & "+ " & ".join(col_names) + " \\\\ \hline \n")
